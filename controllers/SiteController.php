@@ -3,12 +3,16 @@
 namespace app\controllers;
 
 use Yii;
+use yii\helpers\Html;
 use yii\filters\AccessControl;
 use yii\web\Controller;
 use yii\web\Response;
 use yii\filters\VerbFilter;
 use app\models\LoginForm;
 use app\models\ContactForm;
+use app\models\Company;
+use app\models\CompanyForm;
+use app\models\Login;
 
 class SiteController extends Controller
 {
@@ -61,29 +65,36 @@ class SiteController extends Controller
      */
     public function actionIndex()
     {
-        return $this->render('index');
-    }
+        if (!Yii::$app->user->isGuest)
+        {
+            $form = new CompanyForm;
+            if ($form->load(Yii::$app->request->post()) && $form->validate() && Yii::$app->user->identity->attributes['role'] == 'admin')
+            {
+                $companyNew = new Company();
+                $companyNew->name = Html::encode($form->name);
+                $companyNew->directory = Html::encode($form->directory);
+                $companyNew->inn = Html::encode($form->inn);
+                $companyNew->address = Html::encode($form->address);
+                $companyNew->save();
+            }
+            $companys = Company::find()->all();
+            $form->name = '';
+            $form->directory = '';
+            $form->inn = '';
+            $form->address = '';
+            return $this->render('companys',
+                ['companys' => $companys,
+                'form' => $form,
+                'role' => Yii::$app->user->identity->attributes['role']]
 
-    /**
-     * Login action.
-     *
-     * @return Response|string
-     */
-    public function actionLogin()
-    {
-        if (!Yii::$app->user->isGuest) {
-            return $this->goHome();
+            );
+            Yii::$app->user->identity->attributes->roles;
+            return $this->render('index');
         }
-
-        $model = new LoginForm();
-        if ($model->load(Yii::$app->request->post()) && $model->login()) {
-            return $this->goBack();
+        else
+        {
+            return $this->redirect( Yii::$app->urlManager->createUrl(['site/login']) );
         }
-
-        $model->password = '';
-        return $this->render('login', [
-            'model' => $model,
-        ]);
     }
 
     /**
@@ -93,36 +104,60 @@ class SiteController extends Controller
      */
     public function actionLogout()
     {
-        Yii::$app->user->logout();
+        if (!Yii::$app->user->isGuest)
+        {
+            Yii::$app->user->logout();
 
-        return $this->goHome();
-    }
-
-    /**
-     * Displays contact page.
-     *
-     * @return Response|string
-     */
-    public function actionContact()
-    {
-        $model = new ContactForm();
-        if ($model->load(Yii::$app->request->post()) && $model->contact(Yii::$app->params['adminEmail'])) {
-            Yii::$app->session->setFlash('contactFormSubmitted');
-
-            return $this->refresh();
+            return $this->goHome();
         }
-        return $this->render('contact', [
-            'model' => $model,
-        ]);
     }
 
-    /**
-     * Displays about page.
-     *
-     * @return string
-     */
-    public function actionAbout()
+    public function actionCompanys()
     {
-        return $this->render('about');
+        $form = new CompanyForm;
+        if ($form->load(Yii::$app->request->post()) && $form->validate())
+        {
+            $companyNew = new Company();
+            $companyNew->name = Html::encode($form->name);
+            $companyNew->directory = Html::encode($form->directory);
+            $companyNew->inn = Html::encode($form->inn);
+            $companyNew->address = Html::encode($form->address);
+            $companyNew->save();
+        }
+        $companys = Company::find()->all();
+
+        return $this->render('companys',
+            ['companys' => $companys,
+            'form' => $form]
+
+        );
+    }
+    public function actionCompany($id)
+    {
+        $company = Company::find()->where(['id' => $id])->one();
+
+        return $this->render('company',
+            ['company' => $company]
+        );
+    }
+
+    public function actionLogin()
+    {
+        if (!Yii::$app->user->isGuest) {
+            return $this->goHome();
+        }
+        $loginModel = new Login();
+        if (Yii::$app->request->post('Login'))
+        {
+            $loginModel->attributes = Yii::$app->request->post('Login');
+            if ($loginModel->validate())
+            {
+                Yii::$app->user->login($loginModel->getUser());
+                return $this->goHome();
+            }
+        }
+        return $this->render('login',
+            ['loginModel' => $loginModel]
+        );
     }
 }
