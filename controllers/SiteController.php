@@ -127,18 +127,49 @@ class SiteController extends Controller
         $companys = Company::find()->all();
 
         return $this->render('companys',
-            ['companys' => $companys,
-            'form' => $form]
+            [
+                'companys' => $companys,
+                'form' => $form,
+                'role' => Yii::$app->user->identity->attributes['role']
+            ]
 
         );
     }
+
     public function actionCompany($id)
     {
-        $company = Company::find()->where(['id' => $id])->one();
+        $form = new CompanyForm;
+        if ($form->load(Yii::$app->request->post()) && $form->validate())
+        {
+            $company = Company::find()->where(['id' => $id])->one();
+            $company->name = Html::encode($form->name);
+            $company->directory = Html::encode($form->directory);
+            $company->inn = Html::encode($form->inn);
+            $company->address = Html::encode($form->address);
+            $company->save();
+        }
+        else
+        {
+            $company = Company::find()->where(['id' => $id])->one();
+        }        
 
         return $this->render('company',
-            ['company' => $company]
+            [
+                'company' => $company,
+                'form' => $form,
+                'role' => Yii::$app->user->identity->attributes['role']
+            ]
         );
+    }
+
+
+    
+    public function actionDelcompany($id)
+    {
+        $company = Company::find()->where(['id' => $id])->one();  
+        $company->delete();     
+
+        return $this->redirect( Yii::$app->urlManager->createUrl(['site/companys']) );
     }
 
     public function actionLogin()
